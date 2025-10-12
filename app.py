@@ -388,17 +388,7 @@ def _md_for_post(post: dict) -> str:
         f"**Sentiment:** {post['sentiment']}  ",
         f"**Timeframe:** {post['timeframe']}  ",
         "",
-        post['body'],
-    ]
-def _md_for_post(post: dict) -> str:
-    lines = [
-        f"# {post['title']}",
-        f"**Date:** {post['created_at']}  ",
-        f"**Tickers:** {post['tickers']}  ",
-        f"**Sentiment:** {post['sentiment']}  ",
-        f"**Timeframe:** {post['timeframe']}  ",
-        "",
-        post['body'],
+        post["body"],
     ]
     return "\n".join(lines)
 
@@ -412,7 +402,7 @@ def render_research_feed():
     if not ss.is_author:
         with st.expander("Author sign-in (only you can post)", expanded=True):
             entered = st.text_input("Enter author key", type="password")
-            col_ok, col_hint = st.columns([1,3])
+            col_ok, col_hint = st.columns([1, 3])
             with col_ok:
                 if st.button("Sign in"):
                     if author_secret and entered == str(author_secret):
@@ -451,22 +441,20 @@ def render_research_feed():
                         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     })
                     st.success("Posted.")
+        with cB:
+            if st.button("Clear Draft"):
+                st.rerun()
         with cC:
             if st.button("Export All (Markdown)"):
                 if ss.reports:
                     md = "\n\n---\n\n".join(_md_for_post(p) for p in ss.reports)
-                    st.download_button(
-                        "Download feed.md",
-                        data=md,
-                        file_name="research_feed.md"
-                    )
+                    st.download_button("Download feed.md", data=md, file_name="research_feed.md")
                 else:
                     st.info("No posts yet.")
-
-with cD:
-    if st.button("Sign out"):
-        ss.is_author = False
-        st.rerun()
+        with cD:
+            if st.button("Sign out"):
+                ss.is_author = False
+                st.rerun()
     else:
         st.info("Viewing mode: you can read and download posts, but only the author can publish.")
 
@@ -485,13 +473,16 @@ with cD:
                     md = _md_for_post(post)
                     st.download_button("Download .md", data=md, file_name=f"{post['title'].replace(' ', '_')}.md", key=f"dl_{idx}")
                 with cc2:
-                    tweet_text = f"{post['title']} — {post['tickers']} — {post['sentiment']}\n" + (post['body'][:220] + ("..." if len(post['body']) > 220 else ""))
+                    tweet_text = f"{post['title']} — {post['tickers']} — {post['sentiment']}\n" + (
+                        post['body'][:220] + ("..." if len(post['body']) > 220 else "")
+                    )
                     url = f"https://twitter.com/intent/tweet?text={quote_plus(tweet_text)}"
                     st.markdown(f"[Compose Tweet]({url})")
                 with cc3:
                     if ss.is_author and st.button("Delete", key=f"del_{idx}"):
                         ss.reports.pop(idx)
                         st.rerun()
+
 
 # ==========================
 # Router
