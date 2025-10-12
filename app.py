@@ -390,7 +390,17 @@ def _md_for_post(post: dict) -> str:
         "",
         post['body'],
     ]
-    return "
+def _md_for_post(post: dict) -> str:
+    lines = [
+        f"# {post['title']}",
+        f"**Date:** {post['created_at']}  ",
+        f"**Tickers:** {post['tickers']}  ",
+        f"**Sentiment:** {post['sentiment']}  ",
+        f"**Timeframe:** {post['timeframe']}  ",
+        "",
+        post['body'],
+    ]
+    return "\n".join(lines)
 ".join(lines)
 
 
