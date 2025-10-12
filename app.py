@@ -1,8 +1,9 @@
 # Public Investment Terminal (Streamlit)
 # ------------------------------------
-# Now a two-page app:
+# Now a three-page app:
 # 1) Investment Terminal (charts, SMA20/50, RSI, fundamentals, watchlist)
 # 2) Trading Command Center (quick links, grouped resources, notes, custom links)
+# 3) Research Feed (compose weekly reports, archive posts, export/download, tweet links)
 #
 # How to run locally:
 #   1) pip install streamlit yfinance pandas numpy plotly requests pyarrow
@@ -15,6 +16,8 @@
 
 import time
 import math
+from datetime import datetime
+from urllib.parse import quote_plus
 import requests
 import numpy as np
 import pandas as pd
@@ -115,18 +118,21 @@ if "notes_plan" not in st.session_state:
 if "notes_eod" not in st.session_state:
     st.session_state.notes_eod = ""
 if "custom_links" not in st.session_state:
-    st.session_state.custom_links = []  # list of {name, url}
+    st.session_state.custom_links = []  # list of {Name, URL}
 if "expand_state" not in st.session_state:
     st.session_state.expand_state = {}  # group -> bool
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = True
+# Research Feed state
+if "reports" not in st.session_state:
+    st.session_state.reports = []  # list of dicts
 
 # ======================================================
 # PAGES
 # ======================================================
 PAGE = st.sidebar.radio(
     "Select Page",
-    ["Investment Terminal", "Trading Command Center"],
+    ["Investment Terminal", "Trading Command Center", "Research Feed"],
     index=0,
 )
 
@@ -197,10 +203,6 @@ def render_terminal():
 
     st.divider()
 
-    ticker_local = st.session_state.get('ticker_value_for_chart', None)
-    # Use the same ticker variable
-    ticker_local = st.session_state.get('ticker_value_for_chart', None)
-
     if ticker:
         hist = fetch_history(ticker, period=st.session_state.period, interval=st.session_state.interval)
         if hist is None or hist.empty:
@@ -243,11 +245,11 @@ def render_terminal():
     st.divider()
     st.markdown(
         """
-    **Disclaimers**  
-    - For **educational purposes only**. This is **not** financial advice.  
-    - Market data may be **delayed** or inaccurate. Verify before trading.  
-    - By using this app, you agree to the **Yahoo Finance / yfinance** terms of use in your environment.  
-    - If you plan to make this app public at scale, consider a commercial market-data API (Polygon, Finnhub, Alpha Vantage, Twelve Data) and add API key management, caching, and rate-limit protections.
+**Disclaimers**  
+- For **educational purposes only**. This is **not** financial advice.  
+- Market data may be **delayed** or inaccurate. Verify before trading.  
+- By using this app, you agree to the **Yahoo Finance / yfinance** terms of use in your environment.  
+- If you plan to make this app public at scale, consider a commercial market-data API (Polygon, Finnhub, Alpha Vantage, Twelve Data) and add API key management, caching, and rate-limit protections.
         """
     )
 
@@ -407,11 +409,101 @@ def render_command_center():
         df = pd.DataFrame(st.session_state.custom_links)
         st.dataframe(df, use_container_width=True)
 
+# ======================================================
+# PAGE 3: Research Feed (Weekly Reports)
+# ======================================================
+
+def _md_for_post(post: dict) -> str:
+    lines = [
+        f"# {post['title']}",
+        f"**Date:** {post['created_at']}  ",
+        f"**Tickers:** {post['tickers']}  ",
+        f"**Sentiment:** {post['sentiment']}  ",
+        f"**Timeframe:** {post['timeframe']}  ",
+        "",
+        post['body'],
+    ]
+    return "
+".join(lines)
+
+
+def render_research_feed():
+    st.title("📰 Research Feed — Weekly Reports")
+    st.caption("Post your trade notes and findings. Export to Markdown or compose a tweet link. Not investment advice.")
+
+    st.subheader("Compose New Post")
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        title = st.text_input("Title", placeholder="Weekly Report: Momentum plays and catalysts")
+        body = st.text_area("Body", height=220, placeholder="Summary, thesis, entries/exits, risk, catalysts, lessons…")
+    with c2:
+        tickers = st.text_input("Tickers (comma-separated)", placeholder="AAPL, NVDA, SPY")
+        sentiment = st.selectbox("Sentiment", ["Bullish", "Neutral", "Bearish"], index=0)
+        timeframe = st.selectbox("Timeframe", ["Weekly", "Monthly", "Intraday", "Swing"], index=0)
+
+    colA, colB, colC = st.columns([1,1,1])
+    with colA:
+        if st.button("Post"):
+            if not title or not body:
+                st.error("Please enter a title and body.")
+            else:
+                st.session_state.reports.insert(0, {
+                    "title": title.strip(),
+                    "body": body.strip(),
+                    "tickers": tickers.upper().replace(" ", ""),
+                    "sentiment": sentiment,
+                    "timeframe": timeframe,
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                })
+                st.success("Posted.")
+    with colB:
+        if st.button("Clear Draft"):
+            st.experimental_rerun()
+    with colC:
+        if st.button("Export All (Markdown)"):
+            if st.session_state.reports:
+                md = "
+
+---
+
+".join(_md_for_post(p) for p in st.session_state.reports)
+                st.download_button("Download feed.md", data=md, file_name="research_feed.md")
+            else:
+                st.info("No posts yet.")
+
+    st.divider()
+
+    st.subheader("Your Posts")
+    if not st.session_state.reports:
+        st.info("No posts yet. Write your first weekly report above.")
+    else:
+        for idx, post in enumerate(st.session_state.reports):
+            with st.container(border=True):
+                st.markdown(f"### {post['title']}")
+                st.caption(f"{post['created_at']} • {post['tickers']} • {post['sentiment']} • {post['timeframe']}")
+                st.write(post['body'])
+
+                # Buttons per post
+                cc1, cc2, cc3 = st.columns([1,1,1])
+                with cc1:
+                    md = _md_for_post(post)
+                    st.download_button("Download .md", data=md, file_name=f"{post['title'].replace(' ', '_')}.md", key=f"dl_{idx}")
+                with cc2:
+                    tweet_text = f"{post['title']} — {post['tickers']} — {post['sentiment']}
+" + (post['body'][:220] + ("…" if len(post['body'])>220 else ""))
+                    url = f"https://twitter.com/intent/tweet?text={quote_plus(tweet_text)}"
+                    st.link_button("Compose Tweet", url, key=f"tw_{idx}")
+                with cc3:
+                    if st.button("Delete", key=f"del_{idx}"):
+                        st.session_state.reports.pop(idx)
+                        st.experimental_rerun()
 
 # ======================================================
 # Router
 # ======================================================
 if PAGE == "Investment Terminal":
     render_terminal()
-else:
+elif PAGE == "Trading Command Center":
     render_command_center()
+else:
+    render_research_feed()
