@@ -224,11 +224,13 @@ def render_terminal():
                 st.info("Fundamentals not available for this ticker.")
 
     st.divider()
-    st.markdown("**Disclaimers**  
-- For educational purposes only. This is not financial advice.  
-- Market data may be delayed or inaccurate. Verify before trading.  
-- By using this app, you agree to the Yahoo Finance / yfinance terms of use in your environment.  
-- For public scale, consider a commercial market-data API and add key management, caching, and rate-limit protections.")
+    st.markdown("""
+**Disclaimers**
+- For **educational purposes only**. This is **not** financial advice.
+- Market data may be **delayed** or inaccurate. Verify before trading.
+- By using this app, you agree to the Yahoo Finance / yfinance terms of use in your environment.
+- For public scale, consider a commercial market-data API and add key management, caching, and rate-limit protections.
+""")
 
 # ==========================
 # Page 2: Trading Command Center
@@ -446,7 +448,11 @@ def render_research_feed():
         with cC:
             if st.button("Export All (Markdown)"):
                 if ss.reports:
-                    md = "\n\n---\n\n".join(_md_for_post(p) for p in ss.reports)
+                    md = "
+
+---
+
+".join(_md_for_post(p) for p in ss.reports)
                     st.download_button("Download feed.md", data=md, file_name="research_feed.md")
                 else:
                     st.info("No posts yet.")
@@ -472,7 +478,8 @@ def render_research_feed():
                     md = _md_for_post(post)
                     st.download_button("Download .md", data=md, file_name=f"{post['title'].replace(' ', '_')}.md", key=f"dl_{idx}")
                 with cc2:
-                    tweet_text = f"{post['title']} — {post['tickers']} — {post['sentiment']}\n" + (post['body'][:220] + ("..." if len(post['body'])>220 else ""))
+                    tweet_text = f"{post['title']} — {post['tickers']} — {post['sentiment']}
+" + (post['body'][:220] + ("..." if len(post['body'])>220 else ""))
                     url = f"https://twitter.com/intent/tweet?text={quote_plus(tweet_text)}"
                     st.markdown(f"[Compose Tweet]({url})")
                 with cc3:
