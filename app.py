@@ -401,7 +401,6 @@ def _md_for_post(post: dict) -> str:
         post['body'],
     ]
     return "\n".join(lines)
-".join(lines)
 
 
 def render_research_feed():
