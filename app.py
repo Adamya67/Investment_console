@@ -486,7 +486,6 @@ with cD:
                     st.download_button("Download .md", data=md, file_name=f"{post['title'].replace(' ', '_')}.md", key=f"dl_{idx}")
                 with cc2:
                     tweet_text = f"{post['title']} — {post['tickers']} — {post['sentiment']}\n" + (post['body'][:220] + ("..." if len(post['body']) > 220 else ""))
-" + (post['body'][:220] + ("..." if len(post['body'])>220 else ""))
                     url = f"https://twitter.com/intent/tweet?text={quote_plus(tweet_text)}"
                     st.markdown(f"[Compose Tweet]({url})")
                 with cc3:
