@@ -451,25 +451,22 @@ def render_research_feed():
                         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     })
                     st.success("Posted.")
-        with cB:
-            if st.button("Clear Draft"):
-                st.rerun()
         with cC:
-            if st.button("Export All (Markdown)"):
-    if ss.reports:
-        md = "\n\n---\n\n".join(_md_for_post(p) for p in ss.reports)
-        st.download_button(
-            "Download feed.md",
-            data=md,
-            file_name="research_feed.md"
-        )
-    else:
-        st.info("No posts yet.")
+    if st.button("Export All (Markdown)"):
+        if ss.reports:
+            md = "\n\n---\n\n".join(_md_for_post(p) for p in ss.reports)
+            st.download_button(
+                "Download feed.md",
+                data=md,
+                file_name="research_feed.md"
+            )
+        else:
+            st.info("No posts yet.")
 
-        with cD:
-            if st.button("Sign out"):
-                ss.is_author = False
-                st.rerun()
+with cD:
+    if st.button("Sign out"):
+        ss.is_author = False
+        st.rerun()
     else:
         st.info("Viewing mode: you can read and download posts, but only the author can publish.")
 
