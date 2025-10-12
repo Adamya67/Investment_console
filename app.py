@@ -456,8 +456,16 @@ def render_research_feed():
                 st.rerun()
         with cC:
             if st.button("Export All (Markdown)"):
-                if ss.reports:
-                    md = "
+    if ss.reports:
+        md = "\n\n---\n\n".join(_md_for_post(p) for p in ss.reports)
+        st.download_button(
+            "Download feed.md",
+            data=md,
+            file_name="research_feed.md"
+        )
+    else:
+        st.info("No posts yet.")
+
 
 ---
 
