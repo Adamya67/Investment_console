@@ -16,6 +16,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import yfinance as yf
+import os
 
 st.set_page_config(page_title="Public Investment Terminal", page_icon="📈", layout="wide")
 
@@ -115,6 +116,8 @@ if "dark_mode" not in ss:
     ss.dark_mode = True
 if "reports" not in ss:
     ss.reports = []
+if "is_author" not in ss:
+    ss.is_author = False
 
 # ==========================
 # Page selector
@@ -221,7 +224,11 @@ def render_terminal():
                 st.info("Fundamentals not available for this ticker.")
 
     st.divider()
-    st.markdown("**Disclaimers**  \n- For educational purposes only. This is not financial advice.  \n- Market data may be delayed or inaccurate. Verify before trading.  \n- By using this app, you agree to the Yahoo Finance / yfinance terms of use in your environment.  \n- For public scale, consider a commercial market-data API and add key management, caching, and rate-limit protections.")
+    st.markdown("**Disclaimers**  
+- For educational purposes only. This is not financial advice.  
+- Market data may be delayed or inaccurate. Verify before trading.  
+- By using this app, you agree to the Yahoo Finance / yfinance terms of use in your environment.  
+- For public scale, consider a commercial market-data API and add key management, caching, and rate-limit protections.")
 
 # ==========================
 # Page 2: Trading Command Center
@@ -381,53 +388,79 @@ def _md_for_post(post: dict) -> str:
         "",
         post['body'],
     ]
-    return "\n".join(lines)
+    return "
+".join(lines)
 
 
 def render_research_feed():
     st.title("Research Feed — Weekly Reports")
     st.caption("Post your trade notes and findings. Export to Markdown or compose a tweet link. Not investment advice.")
 
-    st.subheader("Compose New Post")
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        title = st.text_input("Title", placeholder="Weekly Report: Momentum plays and catalysts")
-        body = st.text_area("Body", height=220, placeholder="Summary, thesis, entries/exits, risk, catalysts, lessons...")
-    with c2:
-        tickers = st.text_input("Tickers (comma-separated)", placeholder="AAPL, NVDA, SPY")
-        sentiment = st.selectbox("Sentiment", ["Bullish", "Neutral", "Bearish"], index=0)
-        timeframe = st.selectbox("Timeframe", ["Weekly", "Monthly", "Intraday", "Swing"], index=0)
+    # ---- Author auth gate ----
+    author_secret = st.secrets.get("AUTHOR_KEY") or os.getenv("AUTHOR_KEY")
+    if not ss.is_author:
+        with st.expander("Author sign-in (only you can post)", expanded=True):
+            entered = st.text_input("Enter author key", type="password")
+            col_ok, col_hint = st.columns([1,3])
+            with col_ok:
+                if st.button("Sign in"):
+                    if author_secret and entered == str(author_secret):
+                        ss.is_author = True
+                        st.success("Signed in as author. You can post now.")
+                        st.experimental_rerun()
+                    else:
+                        st.error("Invalid key. Viewing is allowed, posting is restricted.")
+            with col_hint:
+                st.caption("Set AUTHOR_KEY in Streamlit Secrets (Cloud: app → Settings → Secrets) or as an environment variable locally.")
 
-    cA, cB, cC = st.columns(3)
-    with cA:
-        if st.button("Post"):
-            if not title or not body:
-                st.error("Please enter a title and body.")
-            else:
-                ss.reports.insert(0, {
-                    "title": title.strip(),
-                    "body": body.strip(),
-                    "tickers": tickers.upper().replace(" ", ""),
-                    "sentiment": sentiment,
-                    "timeframe": timeframe,
-                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                })
-                st.success("Posted.")
-    with cB:
-        if st.button("Clear Draft"):
-            st.rerun()
-    with cC:
-        if st.button("Export All (Markdown)"):
-            if ss.reports:
-                md = "\n\n---\n\n".join(_md_for_post(p) for p in ss.reports)
-                st.download_button("Download feed.md", data=md, file_name="research_feed.md")
-            else:
-                st.info("No posts yet.")
+    # ---- Compose (visible only to author) ----
+    if ss.is_author:
+        st.subheader("Compose New Post")
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            title = st.text_input("Title", placeholder="Weekly Report: Momentum plays and catalysts")
+            body = st.text_area("Body", height=220, placeholder="Summary, thesis, entries/exits, risk, catalysts, lessons...")
+        with c2:
+            tickers = st.text_input("Tickers (comma-separated)", placeholder="AAPL, NVDA, SPY")
+            sentiment = st.selectbox("Sentiment", ["Bullish", "Neutral", "Bearish"], index=0)
+            timeframe = st.selectbox("Timeframe", ["Weekly", "Monthly", "Intraday", "Swing"], index=0)
+
+        cA, cB, cC, cD = st.columns(4)
+        with cA:
+            if st.button("Post"):
+                if not title or not body:
+                    st.error("Please enter a title and body.")
+                else:
+                    ss.reports.insert(0, {
+                        "title": title.strip(),
+                        "body": body.strip(),
+                        "tickers": tickers.upper().replace(" ", ""),
+                        "sentiment": sentiment,
+                        "timeframe": timeframe,
+                        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    })
+                    st.success("Posted.")
+        with cB:
+            if st.button("Clear Draft"):
+                st.rerun()
+        with cC:
+            if st.button("Export All (Markdown)"):
+                if ss.reports:
+                    md = "\n\n---\n\n".join(_md_for_post(p) for p in ss.reports)
+                    st.download_button("Download feed.md", data=md, file_name="research_feed.md")
+                else:
+                    st.info("No posts yet.")
+        with cD:
+            if st.button("Sign out"):
+                ss.is_author = False
+                st.rerun()
+    else:
+        st.info("Viewing mode: you can read and download posts, but only the author can publish.")
 
     st.divider()
     st.subheader("Your Posts")
     if not ss.reports:
-        st.info("No posts yet. Write your first weekly report above.")
+        st.info("No posts yet. Author can write the first weekly report above.")
     else:
         for idx, post in enumerate(ss.reports):
             with st.container():
@@ -443,7 +476,7 @@ def render_research_feed():
                     url = f"https://twitter.com/intent/tweet?text={quote_plus(tweet_text)}"
                     st.markdown(f"[Compose Tweet]({url})")
                 with cc3:
-                    if st.button("Delete", key=f"del_{idx}"):
+                    if ss.is_author and st.button("Delete", key=f"del_{idx}"):
                         ss.reports.pop(idx)
                         st.rerun()
 
