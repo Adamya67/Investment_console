@@ -408,7 +408,7 @@ def render_research_feed():
                     if author_secret and entered == str(author_secret):
                         ss.is_author = True
                         st.success("Signed in as author. You can post now.")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error("Invalid key. Viewing is allowed, posting is restricted.")
             with col_hint:
